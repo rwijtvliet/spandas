@@ -2,6 +2,8 @@
 
 Working with timeseries using `pandas`, I kept running into the same limitations of the `DatetimeIndex` (no 'duration' associated with datapoint) and `PeriodIndex` (no timezone support), so I'm trying to roll my own.
 
+Note that this is a *concept* that I'm exploring and trying to get feedback - on before starting to code. If you have suggestions I'd love to hear them; just start a topic under 'Issues'. Many thanks!
+
 ## Concept
 
 Data is kept in `SpanSeries` objects (which are collected in `SpanDataFrame` objects).
@@ -16,7 +18,50 @@ These have two defining properties that differentiate them from the usual `Serie
 
 * A `.rc` property on each column, that defines their "nature" and resample characteristic. 
 
-### Example 1
+
+## Api, sample usage
+
+```python
+"""
+Sample api usage.
+"""
+
+import spandas as spd
+
+si = spd.span_range(['2020-01-01', '2020-01-03 12:00', '2020-01-07', '2020-01-10'])
+#SpanIndex([('2020-01-01 00:00:00', '2020-01-03 12:00:00'),
+#           ('2020-01-03 12:00:00', '2020-01-07 00:00:00'), 
+#           ('2020-01-07 00:00:00', '2020-01-10 00:00:00')]
+si.to_timedelta()
+#TimedeltaIndex(['1 day, 12 hours', '3 days, 12 hours', '3 days'],
+#               dtype='timedelta64[ns]', freq=None)
+
+customers = spd.SpanSeries([14, 15, 21], index=si, name='n', rc='sd')
+customers.aggregate()
+#50
+velocity = spd.SpanSeries([45, 51, 48], index=si, name='v', rc='ad')
+velocity.aggregate()
+#48.75
+
+taxi = spd.SpanDataFrame({'d': [200, 331, 255], 'rs': [2.5, 1.88, 2.17]}, 
+                         index=si, rc=['sd', ('ao', 'd')])
+taxi.aggregate()
+#d     780.00
+#rs      2.13
+#dtype: float64
+
+#resample characteristic can be determined from combination
+taxi['r'] = taxi['d'] * taxi['rs']
+taxi['r']
+#0    500.00
+#1    622.28
+#2    553.35
+#dtype: float64, rc='sd'
+taxi['error'] = taxi['d'] + taxi['rs']
+#ValueError: addition invalid operation between columns with resample characteristics 'sd' and 'ao'.
+```
+
+## Example 1
 
 As an example, starting with this `SpanDataFrame`, with taxi cab data: 
 
@@ -30,7 +75,7 @@ With columns `d`: distance driven [km], `n `: number of trips, `v`: average velo
 
 When resampling, these quantities are treated differently, depending on their "resample chararcteristic". 
 
-##### Downsampling
+#### Downsampling
 
 To combine the three rows into one time span, the following rules were applied:
 
@@ -42,7 +87,7 @@ To combine the three rows into one time span, the following rules were applied:
 * `v`: average, weighted by subspan duration (`timedelta` property)
 * `rs`: average, weighted by subspan distance (value in column `d`)
 
-##### Upsampling
+#### Upsampling
 
 To split the first time span into two: [t0, t'), [t', t1), with t' at the 60% point between t0 and t1:
 
@@ -54,7 +99,7 @@ To split the first time span into two: [t0, t'), [t', t1), with t' at the 60% po
 * `d`, `n`, `r`: superspan value distributed over subspans in proportion to their duration (`timedelta` property)
 * `v`, `rs`: superspan value copied over into each subspan
 
-### Example 2
+## Example 2
 
 Another example is in this `SpanDataFrame`, with stock price data:
 
@@ -66,7 +111,7 @@ Another example is in this `SpanDataFrame`, with stock price data:
 
 With `q`: number of shares traded in each timespan, `ps`: settlement price (i.e., average trading price) [Eur], and the other columns the open, high, low, and closing prices [Eur].
 
-##### Downsampling
+#### Downsampling
 
 | index    | q    | ps    | po   | ph   | pl   | pc   |
 | -------- | ---- | ----- | ---- | ---- | ---- | ---- |
@@ -79,7 +124,7 @@ With `q`: number of shares traded in each timespan, `ps`: settlement price (i.e.
 * `pl`: min of values in subspans
 * `pc`: value of right-most (i.e. last) subspan 
 
-##### Upsampling
+#### Upsampling
 
 Same t' as before:
 
@@ -129,46 +174,4 @@ V  =& \frac{\sum o_i v_i}{\sum o_i}
 
 v_i = \left\{\begin{aligned} V \text{ if $i=0$}\\\text{na if $i\neq0$}\end{aligned} \right.
 $$
-
-## Api, sample usage
-
-```python
-"""
-Sample api usage.
-"""
-
-import spandas as spd
-
-si = spd.span_range(['2020-01-01', '2020-01-03 12:00', '2020-01-07', '2020-01-10'])
-#SpanIndex([('2020-01-01 00:00:00', '2020-01-03 12:00:00'),
-#           ('2020-01-03 12:00:00', '2020-01-07 00:00:00'), 
-#           ('2020-01-07 00:00:00', '2020-01-10 00:00:00')]
-si.to_timedelta()
-#TimedeltaIndex(['1 day, 12 hours', '3 days, 12 hours', '3 days'],
-#               dtype='timedelta64[ns]', freq=None)
-
-customers = spd.SpanSeries([14, 15, 21], index=si, name='n', rc='sd')
-customers.aggregate()
-#50
-velocity = spd.SpanSeries([45, 51, 48], index=si, name='v', rc='ad')
-velocity.aggregate()
-#48.75
-
-taxi = spd.SpanDataFrame({'d': [200, 331, 255], 'rs': [2.5, 1.88, 2.17]}, 
-                         index=si, rc=['sd', ('ao', 'd')])
-taxi.aggregate()
-#d     780.00
-#rs      2.13
-#dtype: float64
-
-#resample characteristic can be determined from combination
-taxi['r'] = taxi['d'] * taxi['rs']
-taxi['r']
-#0    500.00
-#1    622.28
-#2    553.35
-#dtype: float64, rc='sd'
-taxi['error'] = taxi['d'] + taxi['rs']
-#ValueError: addition invalid operation between columns with resample characteristics 'sd' and 'ao'.
-```
 
