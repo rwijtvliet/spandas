@@ -155,7 +155,7 @@ velocity.aggregate()
 #48.75
 
 taxi = spd.SpanDataFrame({'d': [200, 331, 255], 'rs': [2.5, 1.88, 2.17]}, 
-                         index=si, rc=['sd', ('so', 'd')])
+                         index=si, rc=['sd', ('ao', 'd')])
 taxi.aggregate()
 #d     780.00
 #rs      2.13
