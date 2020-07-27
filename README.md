@@ -2,7 +2,7 @@
 
 Working with timeseries using `pandas`, I kept running into the same limitations of the `DatetimeIndex` (no 'duration' associated with datapoint) and `PeriodIndex` (no timezone support), so I'm trying to roll my own.
 
-Note that this is a *concept* that I'm exploring and trying to get feedback - on before starting to code. If you have suggestions I'd love to hear them; just start a topic under 'Issues'. Many thanks!
+Note that this is a concept that I'm exploring and trying to get feedback on - before starting to code. If you have suggestions I'd love to hear them; just start a topic under 'Issues'. Many thanks!
 
 ## Concept
 
